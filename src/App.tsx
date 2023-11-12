@@ -23,34 +23,48 @@ function App() {
       return {
         startY: k * rectSize,
         endY: (k + 1) * rectSize,
+        isThereFallingRect: false,
         rects: [],
       };
     });
   };
 
-  const drawRect = (rect: IRect) => {
-    ctx?.fillRect(rect.x, rect.y, rectSize, rectSize);
-  };
-
-  let count = 0
-
   const updateAnimation = () => {
     if (!storage) return;
 
-    for (const storageRow of storage) {
-      storageRow.rects.forEach((rect) => {
-        drawRect(rect);
+    for (let i = storage.length - 2; i >= 0; i--) {
+      const currentRow = storage[i];
+      const previousRow = storage[i + 1];
+
+      if (!currentRow.isThereFallingRect) continue;
+
+      ctx?.clearRect(0, currentRow.startY, canvas.width, rectSize);
+
+      currentRow.rects.forEach((rect, index) => {
+        if (!rect.isFalling) return;
+
+        rect.y += 1;
+        ctx?.fillRect(rect.x, rect.y, rectSize, rectSize);
+
+        if (rect.y + 1 > currentRow.endY) {
+          previousRow.rects.push(rect);
+          currentRow.rects.splice(index, 1);
+          previousRow.isThereFallingRect = true;          
+        }
       });
     }
 
-    if (count < 5) requestAnimationFrame(updateAnimation)
+    requestAnimationFrame(updateAnimation);
   };
 
   const addRectToStorage = (x: number, y: number) => {
     if (!storage) return;
 
     const currentRow = Math.trunc(y / rectSize);
+    storage[currentRow].isThereFallingRect = true;
+
     const rect: IRect = {
+      isFalling: true,
       x,
       y,
     };
