@@ -8,6 +8,7 @@ function App() {
   let ctx: CanvasRenderingContext2D | null;
   let storage: IRowInStorage[] | null;
   const [rectSize, setRectSize] = useState(50);
+  let storageFallingRects = 0;
 
   useEffect(() => {
     canvas = canvasRef.current!;
@@ -24,15 +25,15 @@ function App() {
       return {
         startY: k * rectSize,
         endY: (k + 1) * rectSize,
-        isThereFallingRect: false,
+        fallingRectsCount: 0,
         rects: Array(canvas.width / rectSize),
       };
     });
   };
 
-  let count = 0;
   const updateAnimation = () => {
     if (!storage) return;
+    storageFallingRects = 0;
 
     for (let i = storage.length - 2; i >= 0; i--) {
       const row = storage[i];
@@ -40,19 +41,42 @@ function App() {
       ctx?.clearRect(0, row.startY, canvas.width, rectSize);
 
       row.rects.forEach((rect, index) => {
+        const posBottomLeft = previousRow.rects[index - 1];
+        const posBottomRight = previousRow.rects[index + 1];
+        const posBottomMiddle = previousRow.rects[index];
+
+        const rectsBelow = [posBottomLeft, posBottomMiddle, posBottomRight];
+
+        let IsOnTrajectory = false;
+
+        rectsBelow.forEach((rectBelow) => {
+          if (!rectBelow) return;
+          const right = rectBelow.x + rectSize > rect.x && rectBelow.x < rect.x;
+          const left = rectBelow.x < rect.x + rectSize && rectBelow.x > rect.x;
+          if (left || right) IsOnTrajectory = true;
+        });
+
+        if (IsOnTrajectory && row.startY === rect.y) {
+          ctx?.fillRect(rect.x, rect.y, rectSize, rectSize);
+          return;
+        }
+
         rect.y += 1;
         ctx?.fillRect(rect.x, rect.y, rectSize, rectSize);
 
         if (rect.y + 1 > row.endY) {
           delete row.rects[index];
           previousRow.rects[index] = rect;
+          row.fallingRectsCount -= 1;
+          previousRow.fallingRectsCount += 1;
+          storageFallingRects += previousRow.fallingRectsCount;
         }
       });
+
+      if (row.fallingRectsCount) storageFallingRects += row.fallingRectsCount;
     }
 
-    count++;
-    if (count === 50) console.log(storage);
-    if (count < 50) requestAnimationFrame(updateAnimation);
+    if (storageFallingRects) requestAnimationFrame(updateAnimation);
   };
 
   const addRectToStorage = (x: number, y: number) => {
@@ -68,8 +92,9 @@ function App() {
     };
 
     storage[indexOfY].rects[indexOfX] = rect;
+    storage[indexOfY].fallingRectsCount += 1;
 
-    updateAnimation();
+    if (!storageFallingRects) updateAnimation();
   };
 
   return (
@@ -87,65 +112,3 @@ function App() {
 
 export default App;
 
-// const initializeStorage = () => {
-//   storage = Array.from(new Array(canvas.height / rectSize), (v, k) => {
-//     return {
-//       startY: k * rectSize,
-//       endY: (k + 1) * rectSize,
-//       isThereFallingRect: false,
-//       rects: [],
-//     };
-//   });
-// };
-
-// let count = 0;
-// const updateAnimation = () => {
-//   if (!storage) return;
-
-//   for (let i = storage.length - 2; i >= 0; i--) {
-//     const currentRow = storage[i];
-//     const previousRow = storage[i + 1];
-//     const fallingRects: IRect[] = [];
-
-//     if (!currentRow.isThereFallingRect) continue;
-
-//     ctx?.clearRect(0, currentRow.startY, canvas.width, rectSize);
-
-//     currentRow.rects.forEach((rect, index) => {
-//       if (!rect.isFalling) return;
-//       fallingRects.push(rect);
-
-//       rect.y += 1;
-//       ctx?.fillRect(rect.x, rect.y, rectSize, rectSize);
-
-//       if (rect.y + 1 > currentRow.endY) {
-//         previousRow.rects.push(rect);
-//         currentRow.rects.splice(index, 1);
-//         fallingRects.pop();
-//         previousRow.isThereFallingRect = true;
-//       }
-//     });
-
-//     if (!fallingRects.length) currentRow.isThereFallingRect = false;
-//   }
-//   count++;
-//   if (count === 50) console.log(storage);
-
-//   if (count < 50) requestAnimationFrame(updateAnimation);
-// };
-
-// const addRectToStorage = (x: number, y: number) => {
-//   if (!storage) return;
-
-//   const currentRow = Math.trunc(y / rectSize);
-//   storage[currentRow].isThereFallingRect = true;
-
-//   const rect: IRect = {
-//     isFalling: true,
-//     x,
-//     y,
-//   };
-//   storage[currentRow].rects.push(rect);
-
-//   updateAnimation();
-// };

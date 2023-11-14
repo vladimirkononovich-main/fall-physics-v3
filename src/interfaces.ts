@@ -7,6 +7,6 @@ export interface IRect {
 export interface IRowInStorage {
   startY: number;
   endY: number;
-  isThereFallingRect: boolean;
+  fallingRectsCount: number;
   rects: IRect[];
 }
