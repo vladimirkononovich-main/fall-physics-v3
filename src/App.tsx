@@ -7,7 +7,7 @@ function App() {
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D | null;
   let storage: IRowInStorage[] | null;
-  const [rectSize, setRectSize] = useState(50);
+  const [rectSize, setRectSize] = useState(10);
   let storageFallingRects = 0;
 
   useEffect(() => {
@@ -17,7 +17,6 @@ function App() {
     ctx = canvas.getContext("2d");
     ctx!.fillStyle = "grey";
     initializeStorage();
-    console.log(storage);
   });
 
   const initializeStorage = () => {
@@ -38,33 +37,43 @@ function App() {
     for (let i = storage.length - 2; i >= 0; i--) {
       const row = storage[i];
       const previousRow = storage[i + 1];
-      ctx?.clearRect(0, row.startY, canvas.width, rectSize);
+      if (!row.fallingRectsCount) continue;
 
       row.rects.forEach((rect, index) => {
+        if (!rect.isFalling) return;
         const posBottomLeft = previousRow.rects[index - 1];
         const posBottomRight = previousRow.rects[index + 1];
         const posBottomMiddle = previousRow.rects[index];
-
         const rectsBelow = [posBottomLeft, posBottomMiddle, posBottomRight];
-
         let IsOnTrajectory = false;
 
         rectsBelow.forEach((rectBelow) => {
           if (!rectBelow) return;
-          const right = rectBelow.x + rectSize > rect.x && rectBelow.x < rect.x;
-          const left = rectBelow.x < rect.x + rectSize && rectBelow.x > rect.x;
-          if (left || right) IsOnTrajectory = true;
+          const left =
+            rectBelow.right >= rect.left && rectBelow.right <= rect.right;
+          const right =
+            rectBelow.left <= rect.right && rectBelow.left >= rect.left;
+
+          if ((left || right) && rect.bottom === rectBelow.top) {
+            IsOnTrajectory = true;
+          }
         });
 
-        if (IsOnTrajectory && row.startY === rect.y) {
-          ctx?.fillRect(rect.x, rect.y, rectSize, rectSize);
+        if (IsOnTrajectory && rect.isFalling) {
+          ctx?.fillRect(rect.left, rect.top, rectSize, rectSize);
+          rect.isFalling = false;
+          row.fallingRectsCount -= 1;
           return;
         }
 
-        rect.y += 1;
-        ctx?.fillRect(rect.x, rect.y, rectSize, rectSize);
+        if (rect.isFalling) {
+          ctx?.clearRect(rect.left, rect.top, rectSize, rectSize);
+          rect.top += 1;
+          rect.bottom += 1;
+          ctx?.fillRect(rect.left, rect.top, rectSize, rectSize);
+        }
 
-        if (rect.y + 1 > row.endY) {
+        if (rect.top + 1 > row.endY) {
           delete row.rects[index];
           previousRow.rects[index] = rect;
           row.fallingRectsCount -= 1;
@@ -87,8 +96,10 @@ function App() {
 
     const rect: IRect = {
       isFalling: true,
-      x,
-      y,
+      left: x,
+      top: y,
+      bottom: y + rectSize,
+      right: x + rectSize,
     };
 
     storage[indexOfY].rects[indexOfX] = rect;
@@ -111,4 +122,3 @@ function App() {
 }
 
 export default App;
-
