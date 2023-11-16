@@ -7,7 +7,8 @@ function App() {
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D | null;
   let storage: IRowInStorage[] | null;
-  const [rectSize, setRectSize] = useState(10);
+  const [rectSize, setRectSize] = useState(30);
+  const [randomPerimeterSize, setRandomPerimeterSize] = useState(3);
   let storageFallingRects = 0;
 
   useEffect(() => {
@@ -88,23 +89,62 @@ function App() {
     if (storageFallingRects) requestAnimationFrame(updateAnimation);
   };
 
+  const getRandomInt = (max: number) => {
+    return Math.floor(Math.random() * max);
+  };
+
+  const fillRandomCellsAround = (indexOfX: number, indexOfY: number) => {
+    if (!storage) return;
+    let startYIndex = indexOfY - randomPerimeterSize;
+    let endYIndex = indexOfY + randomPerimeterSize;
+    let startXIndex = indexOfX - randomPerimeterSize;
+    let endXIndex = indexOfX + randomPerimeterSize;
+
+    if (!storage[startYIndex]) startYIndex = 0;
+    if (!storage[endYIndex]) endYIndex = storage!.length;
+    if (!storage[startXIndex]) startXIndex = 0;
+    if (!storage[endXIndex]) endXIndex = canvas.height / rectSize;
+
+    storage.forEach((row, index) => {
+      if (index < startYIndex || index > endYIndex) return;
+
+      for (let i = 0; i < row.rects.length; i++) {
+        if (i < startXIndex || i > endXIndex) continue;
+        const randomInt = getRandomInt(2);
+        if (!randomInt) continue;
+
+        row.rects[i] = {
+          isFalling: true,
+          top: row.startY,
+          bottom: row.endY,
+          left: i * rectSize,
+          right: i * rectSize + rectSize,
+        };
+        row.fallingRectsCount += 1
+      }
+    });
+  };
+
   const addRectToStorage = (x: number, y: number) => {
     if (!storage) return;
 
     const indexOfY = Math.trunc(y / rectSize);
     const indexOfX = Math.trunc(x / rectSize);
 
-    const rect: IRect = {
-      isFalling: true,
-      left: x,
-      top: y,
-      bottom: y + rectSize,
-      right: x + rectSize,
-    };
+    // const rect: IRect = {
+    //   isFalling: true,
+    //   left: x,
+    //   top: y,
+    //   bottom: y + rectSize,
+    //   right: x + rectSize,
+    // };
 
-    storage[indexOfY].rects[indexOfX] = rect;
-    storage[indexOfY].fallingRectsCount += 1;
+    // storage[indexOfY].rects[indexOfX] = rect;
+    // storage[indexOfY].fallingRectsCount += 1;
 
+    fillRandomCellsAround(indexOfX, indexOfY);
+    console.log(storage);
+    
     if (!storageFallingRects) updateAnimation();
   };
 
