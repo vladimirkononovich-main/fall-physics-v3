@@ -3,8 +3,6 @@ export interface IRect {
   bottom: number;
   left: number;
   right: number;
-//   x: number;
-//   y: number;
   isFalling: boolean;
 }
 

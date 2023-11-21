@@ -1,5 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import "./App.css";
+import {
+  compareRectAbove,
+  compareRectBelow,
+  compareRectBottomLeft,
+  compareRectBottomRight,
+  compareRectLeft,
+  compareRectRight,
+  compareRectTopLeft,
+  compareRectTopRight,
+} from "./helperFunctions/comparisonIntersections";
+import { getRandomIntInclusive } from "./helperFunctions/random";
 import { IRect, IRowInStorage } from "./interfaces";
 
 function App() {
@@ -7,8 +18,10 @@ function App() {
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D | null;
   let storage: IRowInStorage[] | null;
-  const [rectSize, setRectSize] = useState(30);
-  const [randomPerimeterSize, setRandomPerimeterSize] = useState(3);
+  const [rectSize, setRectSize] = useState(6);
+  const [perimeterSizeForFilling, setPerimeterSizeForFilling] = useState(50);
+  let numberOfRows: number;
+  let numberOfCellsInRow: number;
   let storageFallingRects = 0;
 
   useEffect(() => {
@@ -17,16 +30,18 @@ function App() {
     canvas.width = window.innerWidth - (window.innerWidth % rectSize);
     ctx = canvas.getContext("2d");
     ctx!.fillStyle = "grey";
+    numberOfRows = canvas.height / rectSize;
+    numberOfCellsInRow = canvas.width / rectSize;
     initializeStorage();
   });
 
   const initializeStorage = () => {
-    storage = Array.from(Array(canvas.height / rectSize), (v, k) => {
+    storage = Array.from(Array(numberOfRows), (v, k) => {
       return {
         startY: k * rectSize,
         endY: (k + 1) * rectSize,
         fallingRectsCount: 0,
-        rects: Array(canvas.width / rectSize),
+        rects: Array(numberOfCellsInRow),
       };
     });
   };
@@ -35,94 +50,172 @@ function App() {
     if (!storage) return;
     storageFallingRects = 0;
 
-    for (let i = storage.length - 2; i >= 0; i--) {
+    for (let i = storage.length - 1; i >= 0; i--) {
       const row = storage[i];
       const previousRow = storage[i + 1];
       if (!row.fallingRectsCount) continue;
 
       row.rects.forEach((rect, index) => {
+        if (!rect) return;
         if (!rect.isFalling) return;
-        const posBottomLeft = previousRow.rects[index - 1];
-        const posBottomRight = previousRow.rects[index + 1];
-        const posBottomMiddle = previousRow.rects[index];
-        const rectsBelow = [posBottomLeft, posBottomMiddle, posBottomRight];
-        let IsOnTrajectory = false;
-
-        rectsBelow.forEach((rectBelow) => {
-          if (!rectBelow) return;
-          const left =
-            rectBelow.right >= rect.left && rectBelow.right <= rect.right;
-          const right =
-            rectBelow.left <= rect.right && rectBelow.left >= rect.left;
-
-          if ((left || right) && rect.bottom === rectBelow.top) {
-            IsOnTrajectory = true;
-          }
-        });
-
-        if (IsOnTrajectory && rect.isFalling) {
-          ctx?.fillRect(rect.left, rect.top, rectSize, rectSize);
+        if (!previousRow) {
           rect.isFalling = false;
           row.fallingRectsCount -= 1;
           return;
         }
+        const rectBottomLeft = previousRow.rects[index - 1];
+        const rectBottomRight = previousRow.rects[index + 1];
+        const rectBelow = previousRow.rects[index];
 
-        if (rect.isFalling) {
-          ctx?.clearRect(rect.left, rect.top, rectSize, rectSize);
-          rect.top += 1;
-          rect.bottom += 1;
-          ctx?.fillRect(rect.left, rect.top, rectSize, rectSize);
+        if (rect.top === row.startY) {
+          let stop = false;
+          if (rectBelow) {
+            if (!rectBelow.isFalling) stop = true;
+          }
+
+          if (rectBottomLeft) {
+            if (!rectBottomLeft.isFalling && rectBottomLeft.right >= rect.left)
+              stop = true;
+          }
+
+          if (rectBottomRight) {
+            if (
+              !rectBottomRight.isFalling &&
+              rectBottomRight.left <= rect.right
+            )
+              stop = true;
+          }
+
+          if (stop) {
+            rect.isFalling = false;
+            row.fallingRectsCount -= 1;
+            return;
+          }
         }
 
-        if (rect.top + 1 > row.endY) {
+        if (rect.top === row.endY) {
           delete row.rects[index];
           previousRow.rects[index] = rect;
           row.fallingRectsCount -= 1;
           previousRow.fallingRectsCount += 1;
-          storageFallingRects += previousRow.fallingRectsCount;
+          storageFallingRects += 1;
+          return;
         }
+
+        ctx!.clearRect(rect.left, rect.top, rectSize, rectSize);
+        rect.top += 1;
+        rect.bottom += 1;
+        ctx!.fillRect(rect.left, rect.top, rectSize, rectSize);
       });
 
-      if (row.fallingRectsCount) storageFallingRects += row.fallingRectsCount;
+      storageFallingRects += row.fallingRectsCount;
     }
 
     if (storageFallingRects) requestAnimationFrame(updateAnimation);
   };
 
-  const getRandomInt = (max: number) => {
-    return Math.floor(Math.random() * max);
+  const randomlyFillCell = (
+    cell: IRect,
+    indexOfX: number,
+    indexOfY: number
+  ): false | IRect => {
+    const x = getRandomIntInclusive(cell.left, cell.right);
+    const y = getRandomIntInclusive(cell.top, cell.bottom);
+
+    const newRect: IRect = {
+      isFalling: true,
+      top: y,
+      bottom: y + rectSize,
+      left: x,
+      right: x + rectSize,
+    };
+
+    const rowAbove = storage![indexOfY + 1];
+    const rowBelow = storage![indexOfY - 1];
+    const currentRow = storage![indexOfY];
+    if (!rowAbove || !rowBelow) return false;
+
+    const rectLeft = currentRow.rects[indexOfX - 1];
+    const rectRight = currentRow.rects[indexOfX + 1];
+    const rectAbove = rowAbove.rects[indexOfX];
+    const rectBelow = rowBelow.rects[indexOfX];
+    const rectTopLeft = rowAbove.rects[indexOfX - 1];
+    const rectTopRight = rowAbove.rects[indexOfX + 1];
+    const rectBottomLeft = rowBelow.rects[indexOfX - 1];
+    const rectBottomRight = rowBelow.rects[indexOfX + 1];
+
+    if (rectLeft && compareRectLeft(rectLeft, newRect)) return false;
+    if (rectRight && compareRectRight(rectRight, newRect)) return false;
+    if (rectAbove && compareRectAbove(rectAbove, newRect)) return false;
+    if (rectBelow && compareRectBelow(rectBelow, newRect)) return false;
+    if (rectTopLeft && compareRectTopLeft(rectTopLeft, newRect)) return false;
+    if (rectTopRight && compareRectTopRight(rectTopRight, newRect))
+      return false;
+    if (rectBottomLeft && compareRectBottomLeft(rectBottomLeft, newRect))
+      return false;
+    if (rectBottomRight && compareRectBottomRight(rectBottomRight, newRect))
+      return false;
+
+    return newRect;
   };
 
   const fillRandomCellsAround = (indexOfX: number, indexOfY: number) => {
     if (!storage) return;
-    let startYIndex = indexOfY - randomPerimeterSize;
-    let endYIndex = indexOfY + randomPerimeterSize;
-    let startXIndex = indexOfX - randomPerimeterSize;
-    let endXIndex = indexOfX + randomPerimeterSize;
+    let startYIndex = indexOfY - perimeterSizeForFilling;
+    let endYIndex = indexOfY + perimeterSizeForFilling;
+    let startXIndex = indexOfX - perimeterSizeForFilling;
+    let endXIndex = indexOfX + perimeterSizeForFilling;
 
-    if (!storage[startYIndex]) startYIndex = 0;
-    if (!storage[endYIndex]) endYIndex = storage!.length;
-    if (!storage[startXIndex]) startXIndex = 0;
-    if (!storage[endXIndex]) endXIndex = canvas.height / rectSize;
+    if (startYIndex < 0) startYIndex = 0;
+    if (endYIndex > numberOfRows) endYIndex = numberOfRows;
+    if (startXIndex < 0) startXIndex = 0;
+    if (endXIndex > numberOfCellsInRow) endXIndex = numberOfCellsInRow;
 
-    storage.forEach((row, index) => {
-      if (index < startYIndex || index > endYIndex) return;
+    for (let i = startYIndex; i < endYIndex; i++) {
+      const currentRow = storage[i];
 
-      for (let i = 0; i < row.rects.length; i++) {
-        if (i < startXIndex || i > endXIndex) continue;
-        const randomInt = getRandomInt(2);
-        if (!randomInt) continue;
+      for (let j = startXIndex; j < endXIndex; j++) {
+        if (currentRow.rects[j]) continue;
+        if (!getRandomIntInclusive(0, 1)) continue;
 
-        row.rects[i] = {
+        const currentCell = {
           isFalling: true,
-          top: row.startY,
-          bottom: row.endY,
-          left: i * rectSize,
-          right: i * rectSize + rectSize,
+          top: currentRow.startY,
+          bottom: currentRow.endY,
+          left: j * rectSize,
+          right: j * rectSize + rectSize,
         };
-        row.fallingRectsCount += 1
+
+        const randomlyFilledRect = randomlyFillCell(currentCell, j, i);
+
+        if (!randomlyFilledRect) continue;
+
+        currentRow.rects[j] = randomlyFilledRect;
+        currentRow.fallingRectsCount += 1;
       }
-    });
+    }
+  };
+
+  const removeHalfRects = () => {
+    if (!storage) return;
+    let evenRect = false;
+
+    for (let i = storage.length - 1; i >= 0; i--) {
+      storage[i].rects.forEach((rect, index) => {
+        rect.isFalling = true;
+        storage![i].fallingRectsCount += 1;
+        storageFallingRects += storage![i].fallingRectsCount;
+        if (!evenRect) {
+          evenRect = true;
+          return;
+        }
+
+        ctx?.clearRect(rect.left, rect.top, rectSize, rectSize);
+        evenRect = false;
+        delete storage![i].rects[index];
+        storage![i].fallingRectsCount -= 1;
+      });
+    }
   };
 
   const addRectToStorage = (x: number, y: number) => {
@@ -131,20 +224,8 @@ function App() {
     const indexOfY = Math.trunc(y / rectSize);
     const indexOfX = Math.trunc(x / rectSize);
 
-    // const rect: IRect = {
-    //   isFalling: true,
-    //   left: x,
-    //   top: y,
-    //   bottom: y + rectSize,
-    //   right: x + rectSize,
-    // };
-
-    // storage[indexOfY].rects[indexOfX] = rect;
-    // storage[indexOfY].fallingRectsCount += 1;
-
     fillRandomCellsAround(indexOfX, indexOfY);
-    console.log(storage);
-    
+
     if (!storageFallingRects) updateAnimation();
   };
 
@@ -153,7 +234,8 @@ function App() {
       <canvas
         id="canvas"
         ref={canvasRef}
-        onClick={(e) =>
+        onClick={() => removeHalfRects()}
+        onMouseMove={(e) =>
           addRectToStorage(e.nativeEvent.offsetX, e.nativeEvent.offsetY)
         }
       ></canvas>
