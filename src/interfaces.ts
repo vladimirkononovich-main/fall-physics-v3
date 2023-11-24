@@ -3,7 +3,9 @@ export interface IRect {
   bottom: number;
   left: number;
   right: number;
+  speed: number;
   isFalling: boolean;
+  size: number;
 }
 
 export interface IRowInStorage {
