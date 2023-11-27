@@ -1,40 +1,52 @@
-import { IRect } from "./../interfaces";
+import { IRect, IRowInStorage } from "./../interfaces";
 
-export const compareRectAbove = (rectAbove: IRect, rect: IRect) => {
-  if (rectAbove.bottom > rect.top) return true;
-  return false;
-};
-export const compareRectBelow = (rectBelow: IRect, rect: IRect) => {
-  if (rectBelow.top < rect.bottom) return true;
-  return false;
-};
-export const compareRectLeft = (rectLeft: IRect, rect: IRect) => {
-  if (rectLeft.right > rect.left) return true;
-  return false;
-};
-export const compareRectRight = (rectRight: IRect, rect: IRect) => {
-  if (rectRight.left < rect.right) return true;
-  return false;
-};
-export const compareRectTopLeft = (rectTopLeft: IRect, rect: IRect) => {
-  if (rectTopLeft.bottom > rect.top && rectTopLeft.right > rect.left)
-    return true;
-  return false;
-};
-export const compareRectTopRight = (rectTopRight: IRect, rect: IRect) => {
-  if (rectTopRight.bottom > rect.top && rectTopRight.left < rect.right)
-    return true;
-  return false;
-};
-export const compareRectBottomLeft = (rectBottomLeft: IRect, rect: IRect) => {
-  if (rectBottomLeft.top < rect.bottom && rectBottomLeft.right > rect.left)
-    return true;
-  return false;
-};
-export const compareRectBottomRight = (rectBottomRight: IRect, rect: IRect) => {
-  if (rectBottomRight.top < rect.bottom && rectBottomRight.left < rect.right)
-    return true;
-  return false;
+export const compareRectAround = (
+  currentRow: IRowInStorage,
+  rowBelow: IRowInStorage,
+  rowAbove: IRowInStorage,
+  newRect: IRect,
+  indexOfX: number
+) => {
+  if (!rowAbove || !rowBelow) return false;
+
+  const rectLeft = currentRow.rects[indexOfX - 1];
+  const rectRight = currentRow.rects[indexOfX + 1];
+  const rectAbove = rowAbove.rects[indexOfX];
+  const rectBelow = rowBelow.rects[indexOfX];
+  const rectTopLeft = rowAbove.rects[indexOfX - 1];
+  const rectTopRight = rowAbove.rects[indexOfX + 1];
+  const rectBottomLeft = rowBelow.rects[indexOfX - 1];
+  const rectBottomRight = rowBelow.rects[indexOfX + 1];
+
+  if (rectLeft) if (rectLeft.right > newRect.left) return false;
+  if (rectRight) if (rectRight.left < newRect.right) return false;
+  if (rectAbove) if (rectAbove.bottom > newRect.top) return false;
+  if (rectBelow) if (rectBelow.top < newRect.bottom) return false;
+
+  if (rectTopLeft) {
+    if (rectTopLeft.bottom > newRect.top && rectTopLeft.right > newRect.left)
+      return false;
+  }
+  if (rectTopRight) {
+    if (rectTopRight.bottom > newRect.top && rectTopRight.left < newRect.right)
+      return false;
+  }
+  if (rectBottomLeft) {
+    if (
+      rectBottomLeft.top < newRect.bottom &&
+      rectBottomLeft.right > newRect.left
+    )
+      return false;
+  }
+  if (rectBottomRight) {
+    if (
+      rectBottomRight.top < newRect.bottom &&
+      rectBottomRight.left < newRect.right
+    )
+      return false;
+  }
+
+  return newRect;
 };
 
 export const comparePositionsForFallenRects = (
@@ -103,9 +115,8 @@ export const comparePositionsForFallingRects = (
   return {
     currTop: collidingRectangles[0].top - rect.size,
     currBottom: collidingRectangles[0].top,
-    currSpeed: collidingRectangles[0].speed,
-    rectsBelowSpeed: collidingRectangles[0].speed + 1,
+    currSpeed: rect.speed - 1,
+    rectsBelowSpeed: rect.speed,
     collidingRectangles,
   };
-
 };
