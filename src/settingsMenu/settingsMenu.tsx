@@ -39,8 +39,12 @@ export const SettingsMenu = ({
   return (
     <>
       <div className="backdrop" onClick={closeMenu}></div>
-      <div className="settings-menu" onClick={closeMenu}>
-        <button type="button" className="settings-menu__button">
+      <div className="settings-menu">
+        <button
+          type="button"
+          className="settings-menu__button"
+          onClick={closeMenu}
+        >
           Esc
         </button>
         {Object.keys(settingsMenu).map((key) => {
