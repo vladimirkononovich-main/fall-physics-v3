@@ -1,4 +1,5 @@
-import { IRect, IRowInStorage } from "./../interfaces";
+import { IParametersForFallingRect } from './helperFunctionsModels';
+import { IRect, IRowInStorage } from "../appModels";
 
 export const compareRectAround = (
   currentRow: IRowInStorage,
@@ -70,14 +71,6 @@ export const comparePositionsForFallenRects = (
   return false;
 };
 
-interface IParametersForFallingRect {
-  currTop: number;
-  currBottom: number;
-  currSpeed: number;
-  rectsBelowSpeed: number;
-  collidingRectangles: IRect[];
-}
-
 export const comparePositionsForFallingRects = (
   rectBelow: IRect,
   rectBottomLeft: IRect,
@@ -115,7 +108,7 @@ export const comparePositionsForFallingRects = (
   return {
     currTop: collidingRectangles[0].top - rect.size,
     currBottom: collidingRectangles[0].top,
-    currSpeed: rect.speed - 1,
+    currSpeed: rect.speed - 1 || 1,
     rectsBelowSpeed: rect.speed,
     collidingRectangles,
   };
